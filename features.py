@@ -1,6 +1,10 @@
 import numpy as np
+import pandas as pd
+import mne
 
-from utils import *
+from utils import trim
+from data import IC
+
 
 eye_move_example = np.load('eye_move_example.npy')
 eye_blink_example = np.load('eye_blink_example.npy')
@@ -228,3 +232,32 @@ def build_feature_df(data, default=True, custom_features={}):
     for feature_name, compute_feature in custom_features.items():
         feature_df[feature_name] = [compute_feature(ic) for ic in data.values()]
     return feature_df
+  
+
+def get_features_from_mne(obj, ica_obj):
+    ica_df = ica_obj.get_sources(obj).to_data_frame()
+    if isinstance(obj, mne.io.Raw):
+        times = np.arange(ica_df.shape[0]) / ica_obj.info['sfreq']
+        pseudo_epoch_idx = [int(t / 2) for t in times]
+        ica_df['epoch'] = pseudo_epoch_idx
+    
+    channels_to_use = [ch.lower() for ch in ica_obj.info['ch_names']]
+    
+    ic_names = [col for col in ica_df.columns if col not in ('epoch', 'time')]
+
+    data = {}
+
+    for ic_idx, ic_name in enumerate(ic_names):
+        df_weights = (
+            pd.DataFrame({'ch_name': channels_to_use, 
+                          'value': ica_obj.get_components()[:, ic_idx]})
+            .set_index('ch_name')
+            ['value'].rename('weights'))
+
+        df_data = (
+            ica_df[['epoch', ic_name]].rename(columns={ic_name: 'value'})
+            .groupby('epoch')['value'].apply(np.array).rename('signal'))
+
+        data[ic_name] = IC(df_data, df_weights, ica_obj.info['sfreq'])
+    
+    return build_feature_df(data)
