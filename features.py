@@ -238,8 +238,15 @@ def get_features_from_mne(obj, ica_obj):
     ica_df = ica_obj.get_sources(obj).to_data_frame()
     if isinstance(obj, mne.io.Raw):
         times = np.arange(ica_df.shape[0]) / ica_obj.info['sfreq']
+        # get 2 seconds pseudo epochs
         pseudo_epoch_idx = [int(t / 2) for t in times]
         ica_df['epoch'] = pseudo_epoch_idx
+        
+        # crop last epoch if it is shorter than others
+        first_epoch_len = len([idx for idx in pseudo_epoch_idx if idx == 0])
+        last_epoch_len = len([idx for idx in pseudo_epoch_idx if idx == pseudo_epoch_idx[-1]])
+        if first_epoch_len != last_epoch_len:
+            ica_df = ica_df[ica_df['epoch'] != pseudo_epoch_idx[-1]]
     
     channels_to_use = [ch.lower() for ch in ica_obj.info['ch_names']]
     
