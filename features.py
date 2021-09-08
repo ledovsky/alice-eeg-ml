@@ -1,3 +1,5 @@
+from itertools import chain
+
 import numpy as np
 import pandas as pd
 import mne
@@ -225,12 +227,21 @@ def build_feature_df(data, default=True, custom_features={}):
         pd.Dataframe: The feature matrix for the dataset.
     """
     feature_df = pd.DataFrame(index=data.keys())
-    if default:
-        for feature_name, compute_feature in default_features.items():
-            feature_df[feature_name] = [compute_feature(ic) for ic in data.values()]
+    def get_iter():
+        if default:
+            return default_features.items()
+        else:
+            return chain(default_features.items(), custom_features.items())
 
-    for feature_name, compute_feature in custom_features.items():
-        feature_df[feature_name] = [compute_feature(ic) for ic in data.values()]
+    features = [feature_name for feature_name, _ in get_iter()]
+    rows = []
+    for ic in data.values():
+        row = []
+        for feature_name, compute_feature in get_iter():
+            row.append(compute_feature(ic))
+        rows.append(row)
+    feature_df = pd.DataFrame(rows, columns=features)
+
     return feature_df
   
 

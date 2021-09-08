@@ -1,4 +1,5 @@
 from functools import lru_cache
+from os.path import join
 from pathlib import Path
 
 import mne
@@ -13,11 +14,38 @@ class IC:
     A wrapper that represents the independent component. Contains the signal, weights of channels and the sampling frequency.
     """
 
-    def __init__(self, signal, weigths, freq):
-        self.signal = signal
-        self.weights = weigths
-        self.freq = freq
+    def __init__(self, freq, signal=None, weights=None, signal_path=None, weights_path=None):
+        """
+        If signal is None, signal_path must be set. If weights is None, weights_path must be set
+        Setting signal_path and weights_path allows to use dynamic data loading with lru_cache. It is useful when your dataset is large.
 
+        Args
+            freq: Sampling frequency 
+        """
+        if (signal is None and signal_path is None):
+            raise ValueError('signal or signal_path must be provided')
+        if (weights is None and weights_path is None):
+            raise ValueError('signal or signal_path must be provided')
+        self._signal = signal
+        self._weights = weights
+        self._weights_path = weights_path
+        self._signal_path = signal_path
+        self.freq = freq
+    
+    @property
+    @lru_cache(maxsize=10)
+    def weights(self):
+        if self._weights is None:
+            return self._read_weights()
+        return self._weights
+    
+    @property
+    @lru_cache(maxsize=10)
+    def signal(self):
+        if self._signal is None:
+            return self._read_signal()
+        return self._signal
+    
     def select_weights(self, channels):
         return self.weights[self.weights.index.isin(channels)]
 
@@ -81,23 +109,37 @@ class IC:
 
         if returns:
             return fig
+    
+    def _read_weights(self):
+        if self._weights_path is None:
+            raise RuntimeError('weights_path is None')
+        return pd.read_csv(self._weights_path, index_col='ch_name')['value'].rename('weights')
+
+    def _read_signal(self):
+        if self._signal_path is None:
+            raise RuntimeError('weights_path is None')
+        return pd.read_csv(self._signal_path).groupby('epoch')['value'].apply(np.array).rename('signal')
 
 
-def read_ic(dir, ic_id, freqs=None):
+def read_ic(dir, ics, ic_id, preload=True):
     path = Path(dir)
-    if freqs is None:
-        freqs = pd.read_csv(path/'ics.csv')
-    data = pd.read_csv(path/f'{ic_id}_data.csv')
-    signal = data.groupby('epoch')['value'].apply(np.array).rename('signal')
-    weights = pd.read_csv(path/f'{ic_id}_weights.csv', index_col='ch_name')['value'].rename('weights')
-    return IC(signal, weights, freqs.loc[freqs['ic_id'] == ic_id, 'sfreq'])
+    signal_path = join(path, f'{ic_id}_data.csv')
+    weights_path = join(path, f'{ic_id}_weights.csv')
+    freq = ics.loc[ics['ic_id'] == ic_id, 'sfreq']
+    if preload is True:
+        signal = pd.read_csv(signal_path).groupby('epoch')['value'].apply(np.array).rename('signal')
+        weights = pd.read_csv(weights_path, index_col='ch_name')['value'].rename('weights')
+        return IC(freq, signal=signal, weights=weights)
+    else:
+        return IC(freq, signal_path=signal_path, weights_path=weights_path)
+        
 
 
-def load_dataset(dir='data'):
+def load_dataset(dir='data', preload=True):
     path = Path(dir)
-    freqs = pd.read_csv(path/'ics.csv')
-    ic_ids = list(freqs['ic_id'])
-    data = {ic_id: read_ic(dir, ic_id, freqs) for ic_id in ic_ids}
+    ics = pd.read_csv(path/'ics.csv')
+    ic_ids = list(ics['ic_id'])
+    data = {ic_id: read_ic(dir, ics, ic_id, preload=preload) for ic_id in ic_ids}
     annotations = pd.read_csv(path/'annotations_raw.csv')
     return data, annotations
 
