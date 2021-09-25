@@ -1,15 +1,17 @@
+import importlib.resources as pkg_resources
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 import mne
 
-from utils import trim
-from data import IC
+from alice_ml.utils import trim
+from alice_ml.preprocessing import IC
+from alice_ml import data
 
 
-eye_move_example = np.load('eye_move_example.npy')
-eye_blink_example = np.load('eye_blink_example.npy')
+eye_move_example = np.load(pkg_resources.open_binary(data, 'eye_move_example.npy'))
+eye_blink_example = np.load(pkg_resources.open_binary(data, 'eye_blink_example.npy'))
 
 
 def _cross_corr(epoch_eye, epoch):
@@ -276,6 +278,6 @@ def get_features_from_mne(obj, ica_obj):
             ica_df[['epoch', ic_name]].rename(columns={ic_name: 'value'})
             .groupby('epoch')['value'].apply(np.array).rename('signal'))
 
-        data[ic_name] = IC(df_data, df_weights, ica_obj.info['sfreq'])
+        data[ic_name] = IC(ica_obj.info['sfreq'], signal=df_data, weights=df_weights)
     
     return build_feature_df(data)

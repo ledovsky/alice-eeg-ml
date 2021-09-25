@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from utils import get_epochs_from_df
+from alice_ml.utils import get_epochs_from_df
 
 class IC:
     """
