@@ -236,13 +236,15 @@ def build_feature_df(data, default=True, custom_features={}):
             return chain(default_features.items(), custom_features.items())
 
     features = [feature_name for feature_name, _ in get_iter()]
+    idx = []
     rows = []
-    for ic in data.values():
+    for ic_id, ic in data.items():
         row = []
+        idx.append(ic_id)
         for feature_name, compute_feature in get_iter():
             row.append(compute_feature(ic))
         rows.append(row)
-    feature_df = pd.DataFrame(rows, columns=features)
+    feature_df = pd.DataFrame(rows, index=idx, columns=features)
 
     return feature_df
   
