@@ -20,8 +20,6 @@ def test_get_features_from_mne():
     feature_df = get_features_from_mne(raw, ica)
 
     # 15 ics in the test sample
-    print(feature_df.shape[0] == 15)
+    assert feature_df.shape[0] == 15
     # 11 main features
-    print(feature_df.shape[1] == 11)
-
-    assert False
+    assert feature_df.shape[1] == 11
