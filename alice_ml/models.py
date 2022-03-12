@@ -30,7 +30,7 @@ def predict_mne(raw, ica, model = 'lr', flags = 'all'):
 
     models = {}
     if flags == 'all':
-        flags = ['flag_brain', 'flag_alpha', 'flag_mu', 'flag_muscles', 'flag_eyes', 'flag_heart', 'flag_ch_noise']
+        flags = ['flag_brain', 'flag_muscles', 'flag_eyes']
     for flag in flags:
         models[flag] = joblib.load(pkg_resources.open_binary(pretrained, f'{model}_' + flag + '.joblib'))
     
