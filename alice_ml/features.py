@@ -251,7 +251,7 @@ def build_feature_df(data, default=True, custom_features={}):
 
 def get_features_from_mne(obj, ica_obj):
     ica_df = ica_obj.get_sources(obj).to_data_frame()
-    if isinstance(obj, mne.io.Raw):
+    if isinstance(obj, mne.io.BaseRaw):
         times = np.arange(ica_df.shape[0]) / ica_obj.info['sfreq']
         # get 2 seconds pseudo epochs
         pseudo_epoch_idx = [int(t / 2) for t in times]
